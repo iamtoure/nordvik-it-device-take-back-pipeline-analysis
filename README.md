@@ -40,8 +40,8 @@ Both planted bottlenecks were found, with no false positives. Two of the questio
 
 ## Stored procedures
 
-- **`p_exception_snapshot(start_date, end_date, full_mode)`**: lists stage events that are statistical outliers (more than 3 standard deviations from the category and stage average) in a date window. A mode switch chooses between a baseline from the whole history and one from the window only.
-- **`p_unresolved_devices(as_of_date)`** (`sql/p_unresolved_devices.sql`): lists every device that had arrived but was not yet resolved on a given date, with the stage it had reached by then, days in the pipeline, and a flag for devices whose true stage may be further along because a later event has no timestamp.
+- **`exception_snapshot(start_date, end_date, full_mode)`**: lists stage events that are statistical outliers (more than 3 standard deviations from the category and stage average) in a date window. A mode switch chooses between a baseline from the whole history and one from the window only.
+- **`unresolved_devices(as_of_date)`** (`sql/unresolved_devices.sql`): lists every device that had arrived but was not yet resolved on a given date, with the stage it had reached by then, days in the pipeline, and a flag for devices whose true stage may be further along because a later event has no timestamp.
 
 Design choices worth noting:
 - The data records final outcomes but not resolved dates, so resolved dates are inferred from the sale date, the listing date plus the 60-day write-off rule, or the grading date
@@ -71,4 +71,3 @@ SQL (MySQL): CTEs, window functions, subqueries, views, stored procedures with v
 
 1. Run `data/generate_data.py` to create the CSV files (or load the supplied ones)
 2. Run the SQL scripts in `sql/` in numbered order
-3. `CALL p_unresolved_devices('2025-06-30');`
