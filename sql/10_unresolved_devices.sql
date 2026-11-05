@@ -1,5 +1,5 @@
 /* =====================================================================
-   p_unresolved_devices(p_as_of_date)
+   unresolved_devices(p_as_of_date)
    Nordvik IT - device take-back pipeline
 
    PURPOSE
@@ -36,14 +36,14 @@
       therefore be further along than shown. 'no' means the reported
       stage is reliable.
 
-   USAGE   CALL p_unresolved_devices('2025-06-30');
+   USAGE   CALL unresolved_devices('2025-06-30');
    ===================================================================== */
 
-DROP PROCEDURE IF EXISTS p_unresolved_devices;
+DROP PROCEDURE IF EXISTS unresolved_devices;
 
 DELIMITER $$
 
-CREATE PROCEDURE p_unresolved_devices(
+CREATE PROCEDURE unresolved_devices(
     IN p_as_of_date DATE
 )
 BEGIN
@@ -168,11 +168,11 @@ END $$
 DELIMITER ;
 
 /* Checks to run after creating it:
-   CALL p_unresolved_devices('2025-06-30');  -- expect 241 rows
+   CALL unresolved_devices('2025-06-30');  -- expect 241 rows
        hidden_stage_flag = 'yes' for 9 devices:
        1333, 1936, 2363, 2803, 3299, 4045, 4585, 4626, 2773
        device 5932 must show 'no'
-   CALL p_unresolved_devices('2025-11-23');  -- device 1156 should show 'received'
-   CALL p_unresolved_devices(NULL);          -- NULL error
-   CALL p_unresolved_devices('2030-01-01');  -- out-of-range error
+   CALL unresolved_devices('2025-11-23');  -- device 1156 should show 'received'
+   CALL unresolved_devices(NULL);          -- NULL error
+   CALL unresolved_devices('2030-01-01');  -- out-of-range error
 */
