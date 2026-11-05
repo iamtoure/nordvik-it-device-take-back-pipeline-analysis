@@ -13,14 +13,14 @@ Lifecycle: `received → data wipe / security check → graded → refurbished �
 ## What is in the data
 
 - 6,000 devices, about 31,700 stage events, six tables (devices, customers, pipeline events, outcomes, warehouses, categories)
-- Four warehouses (Stockholm, Oslo, Helsinki, Copenhagen), Two customer segments (small and medium-sized businesses [SMB] and large-customer segments)
+- Four Nordic warehouses (Stockholm, Oslo, Helsinki, Copenhagen), SMB and large-customer segments
 - Deliberately messy: duplicate rows, inconsistent labels, bad timestamps, blank brands, text-typed numbers
 - Two bottlenecks were planted in the generator, so the analysis can be checked against a known answer
 
 ## Approach
 
 1. **Business problem and schema design:** event-level pipeline table, so "which stage is slow" can be answered, not only "which device was slow"
-2. **Synthetic data in Python** (`generate_data.py`)
+2. **Synthetic data in Python** (`generate_data.py`), with a clean and a messy version
 3. **Staging, cleaning and production in MySQL:** profiling queries, de-duplication, timestamp repair, type fixes, then loading the production tables
 4. **Analysis layer:** views, window functions, CTEs and subqueries
 5. **Stored procedures** with parameters and input validation
@@ -33,15 +33,15 @@ Lifecycle: `received → data wipe / security check → graded → refurbished �
 | Which warehouse is slow at which stage? | Average stage duration vs. network baseline, 30% gap threshold | Oslo is about 60% slower at grading |
 | Which category is slow at which stage? | Same method by category | Phone data-wipe stage is about 84% above baseline |
 | Does customer segment matter? | Same method by segment | No significant difference |
-| Which individual devices are outliers? | Z-score within category and stage | Outlier list produced |
+| Which individual devices are outliers? | Z-score within category and stage | Outlier list produced; 2.4 covers what the peer-group view cannot see |
 | Where is value lost (not resold)? | Failure and write-off rates by category and warehouse | Loss is network-wide, not concentrated, so any fix is a network-wide policy change |
 
 Both planted bottlenecks were found, with no false positives. Two of the questions returned a genuine negative result, and the write-up says so rather than forcing a finding.
 
 ## Stored procedures
 
-- **`exception_snapshot(start_date, end_date, full_mode)`**: lists stage events that are statistical outliers (more than 3 standard deviations from the category and stage average) in a date window. A mode switch chooses between a baseline from the whole history and one from the window only.
-- **`unresolved_devices(as_of_date)`** (`sql/unresolved_devices.sql`): lists every device that had arrived but was not yet resolved on a given date, with the stage it had reached by then, days in the pipeline, and a flag for devices whose true stage may be further along because a later event has no timestamp.
+- **`exception_snapshot(start_date, end_date, full_mode)`** (`sql/09_exception_snapshot.sql`): lists stage events that are statistical outliers (more than 3 standard deviations from the category and stage average) in a date window. A mode switch chooses between a baseline from the whole history and one from the window only.
+- **`unresolved_devices(as_of_date)`** (`sql/10_unresolved_devices.sql`): lists every device that had arrived but was not yet resolved on a given date, with the stage it had reached by then, days in the pipeline, and a flag for devices whose true stage may be further along because a later event has no timestamp.
 
 Design choices worth noting:
 - The data records final outcomes but not resolved dates, so resolved dates are inferred from the sale date, the listing date plus the 60-day write-off rule, or the grading date
@@ -57,11 +57,26 @@ Deliberately flagged limitations: blank brands, an `Unknown` category or warehou
 
 ```
 README.md
-sql/                     DDL, cleaning scripts, views and stored procedures
-data/generate_data.py    synthetic data generator
-data/data_dictionary.md  table and column definitions
-powerbi/                 report and screenshots (to come)
+sql/
+  01_schema_ddl.sql              database and the seven production tables
+  02_staging_load.sql            loosely typed staging tables
+  03_cleaning_devices.sql        customer segment and device cleaning
+  04_cleaning_pipeline_events.sql  employees, duplicates, bad timestamps
+  05_cleaning_outcomes.sql       price clean-up
+  06_load_production.sql         staging -> production, with row-count tie-out
+  07_views.sql                   current stage, stage durations, device overview
+  08_analysis_goal2.sql          bottleneck and exception queries (2.1 to 2.5)
+  09_exception_snapshot.sql      stored procedure: outlier devices for a date range
+  10_unresolved_devices.sql      stored procedure: unresolved devices as of a date
+data/
+  generate_data.py               synthetic data generator (seed 42)
+  nordvik_data_messy.zip         the generated messy CSVs used in this project
+  data_dictionary.md             table and column definitions
+docs/
+  project_journal.md             running log of decisions, mistakes and fixes
+powerbi/                         report and screenshots (to come)
 ```
+
 
 ## Skills demonstrated
 
@@ -69,5 +84,15 @@ SQL (MySQL): CTEs, window functions, subqueries, views, stored procedures with v
 
 ## How to run
 
-1. Run `data/generate_data.py` to create the CSV files (or load the supplied ones)
-2. Run the SQL scripts in `sql/` in numbered order
+1. Create the database and tables with `sql/01_schema_ddl.sql`.
+2. Load the messy CSVs from `data/nordvik_data_messy.zip` (or generate your own with `data/generate_data.py`): the dimension tables into the production tables, and the three transactional files into the staging tables from script 02.
+3. Run scripts 03 to 06 to clean and load the data, then 07 to 10 for the views, analysis and procedures.
+4. Try the procedures:
+   - `CALL exception_snapshot('2025-01-01', '2025-04-30', 1);`
+   - `CALL unresolved_devices('2025-06-30');`
+
+Scripts 02 to 06 are one-time scripts that document the cleaning step by step; they are not meant to be run twice.
+
+## Reproducing the results
+
+The generator uses a fixed seed (42), so running it unchanged with the same library versions should recreate the same data. For an exact match, use the supplied `data/nordvik_data_messy.zip`. The row counts and expected values in the script comments (for example 6,000 devices, 31,732 events and the nine flagged devices in `unresolved_devices`) apply to that dataset. If you generate your own data with a different seed or a changed generator, expect different numbers.
