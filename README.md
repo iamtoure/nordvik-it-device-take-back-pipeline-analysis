@@ -20,7 +20,7 @@ Lifecycle: `received → data wipe / security check → graded → refurbished �
 ## Approach
 
 1. **Business problem and schema design:** event-level pipeline table, so "which stage is slow" can be answered, not only "which device was slow"
-2. **Synthetic data in Python** (`generate_data.py`), with a clean and a messy version
+2. **Synthetic data in Python** (`generate_data.py`)
 3. **Staging, cleaning and production in MySQL:** profiling queries, de-duplication, timestamp repair, type fixes, then loading the production tables
 4. **Analysis layer:** views, window functions, CTEs and subqueries
 5. **Stored procedures** with parameters and input validation
@@ -33,10 +33,9 @@ Lifecycle: `received → data wipe / security check → graded → refurbished �
 | Which warehouse is slow at which stage? | Average stage duration vs. network baseline, 30% gap threshold | Oslo is about 60% slower at grading |
 | Which category is slow at which stage? | Same method by category | Phone data-wipe stage is about 84% above baseline |
 | Does customer segment matter? | Same method by segment | No significant difference |
-| Which individual devices are outliers? | Z-score within category and stage | Outlier list produced; 2.4 covers what the peer-group view cannot see |
+| Which individual devices are outliers? | Z-score within category and stage | Outlier list produced |
 | Where is value lost (not resold)? | Failure and write-off rates by category and warehouse | Loss is network-wide, not concentrated, so any fix is a network-wide policy change |
 
-Both planted bottlenecks were found, with no false positives. Two of the questions returned a genuine negative result, and the write-up says so rather than forcing a finding.
 
 ## Stored procedures
 
@@ -44,7 +43,7 @@ Both planted bottlenecks were found, with no false positives. Two of the questio
 - **`unresolved_devices(as_of_date)`** (`sql/10_unresolved_devices.sql`): lists every device that had arrived but was not yet resolved on a given date, with the stage it had reached by then, days in the pipeline, and a flag for devices whose true stage may be further along because a later event has no timestamp.
 
 Design choices worth noting:
-- The data records final outcomes but not resolved dates, so resolved dates are inferred from the sale date, the listing date plus the 60-day write-off rule, or the grading date
+- The data records final outcomes but not resolved dates, so resolved dates are inferred from the sale date, the listing date plus the 60-day write-off rule, or the grading date (for recycled/disposed devices)
 - "As of a date" counts the whole day (comparison at the following midnight)
 - Devices with an unknown resolved date stay in the list instead of dropping silently
 - Inputs are validated (NULL, out-of-range dates) with clear error messages
