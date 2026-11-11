@@ -72,7 +72,6 @@ data/
   nordvik_data_messy.zip         the generated messy CSVs used in this project
   data_dictionary.md             table and column definitions
 docs/
-  project_journal.md             running log of decisions, mistakes and fixes
 powerbi/                         report and screenshots (to come)
 ```
 
